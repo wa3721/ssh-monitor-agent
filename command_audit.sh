@@ -10,6 +10,7 @@ fi
 SESSION_MARKER_FILE="/home/ssh_session_$$_${RANDOM}"
 
 log_command() {
+     local exit_code=$?
    { set +x; } 2>/dev/null
 
        if [[ ! -f "$SESSION_MARKER_FILE" ]]; then
@@ -17,7 +18,7 @@ log_command() {
            return 0
        fi
     local last_command
-    last_command=$(history 1 | { read -r num cmd; echo "$cmd"; })
+    last_command=$(history 1 | { read -r num  cmd; echo "$cmd"; })
     local timestamp
     timestamp=$(date '+%Y-%m-%d %T')
 
@@ -29,7 +30,7 @@ log_command() {
         client_port="-"
     fi
 
-    log_entry="| $timestamp | User: $(whoami) | IP: $client_ip | Port: $client_port | PWD: $PWD | $last_command |"
+   log_entry="| Time: $timestamp | User: $(whoami) | IP: $client_ip | Port: $client_port | PWD: $PWD | Command: $last_command | ExitCode: $exit_code |"
 
 #    echo "$log_entry" >> /var/log/ssh_command_audit.log
 
@@ -39,6 +40,7 @@ log_command() {
     then :
     else
        echo "[$timestamp] Failed to send log to remote server." >> "$AUDIT_LOG"
+       echo "$log_entry" >> "$AUDIT_LOG"
     fi
 }
 

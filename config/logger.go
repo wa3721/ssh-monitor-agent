@@ -13,7 +13,11 @@ const (
 	consoleErr = "stderr"
 )
 
-var GlobalLogger *zap.Logger
+var (
+	globalLoggerOnce sync.Once
+	globalLoggerErr  error
+	GlobalLogger     *zap.Logger
+)
 
 type Logger interface {
 	SetLogger() (*zap.Logger, error)
@@ -72,6 +76,9 @@ func (logger *ProdLogger) SetLogger() (*zap.Logger, error) {
 	case "double":
 		cfg.OutputPaths = []string{consoleStd, fileStd}
 		cfg.ErrorOutputPaths = []string{consoleErr, fileError}
+	default:
+		cfg.OutputPaths = []string{consoleStd}
+		cfg.ErrorOutputPaths = []string{consoleErr}
 	}
 
 	l, err := cfg.Build()
@@ -122,15 +129,9 @@ func (logger *DevLogger) SetLogger() (*zap.Logger, error) {
 	return l, nil
 }
 
-func init() {
-	var (
-		once sync.Once
-		err  error
-	)
-	once.Do(func() {
-		GlobalLogger, err = NewLogger("debug", "console", false).SetLogger()
-		if err != nil {
-			panic(err)
-		}
+func InitLogger(loglevel, outputPath string, prod bool) error {
+	globalLoggerOnce.Do(func() {
+		GlobalLogger, globalLoggerErr = NewLogger(loglevel, outputPath, prod).SetLogger()
 	})
+	return globalLoggerErr
 }

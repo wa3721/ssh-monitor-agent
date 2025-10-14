@@ -2,7 +2,9 @@ package scriptinit
 
 import (
 	"go.uber.org/zap"
-	"kubeauth/config"
+
+	"sshmonitor/config"
+
 	"os"
 )
 
