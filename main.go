@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"sshmonitor/config"
+	"sshmonitor/pkg/consumer"
 	httpserver "sshmonitor/pkg/http"
 
 	scriptinit "sshmonitor/pkg/script-init"
@@ -18,17 +19,19 @@ func main() {
 	var logOutput string
 	var prod bool
 	var catcherLength int
-	flag.StringVar(&loglevel, "loglevel", "info", "Set log level , Optional: debug, info, warn, error, default: info")
+	flag.StringVar(&loglevel, "loglevel", "debug", "Set log level , Optional: debug, info, warn, error, default: info")
 	flag.StringVar(&logOutput, "logoutput", "stdout", "Set log output path ,Optional: console, file, double, default: console")
 	flag.BoolVar(&prod, "prod", false, "Set deployment mode or prod mode Optional: false, true default: false")
 	flag.IntVar(&catcherLength, "catcherlength", 1000, "Set ssh command provider channel length, default: 1000")
 	flag.Parse()
-
 	err := config.InitLogger(loglevel, logOutput, prod)
 	if err != nil {
 		panic(err)
 	}
 	scriptinit.NewChecklist().RunAll()
 	scriptinit.Exec()
-	httpserver.NewServer().StartServer(catcherLength)
+
+	go httpserver.NewServer().StartServer(catcherLength)
+	consumer.Consume()
+
 }

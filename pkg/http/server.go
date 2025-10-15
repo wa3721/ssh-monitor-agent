@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 	"io"
+	"k8s.io/apimachinery/pkg/util/json"
 	"os"
+	"sync"
 	"time"
 
 	"net/http"
@@ -28,29 +30,21 @@ type Server struct {
 
 var Catcher SshCommandCatcher
 
+var pool sync.Pool
+
 type SshCommandCatcher struct {
 	CommandChan chan *SshCommand
 }
 
 type SshCommand struct {
 	nodeIP      string //nodeIp 应该一开始就初始化 取自downwardApi 环境变量
-	ExecuteTime string `json:"time,omitempty"`
-	User        string `json:"user,omitempty"`
-	ClientIp    string `json:"ip,omitempty"`
-	Port        string `json:"port,omitempty"`
-	Pwd         string `json:"pwd,omitempty"`
-	Command     string `json:"command,omitempty"`
-	ExitCode    int32  `json:"exit_code,omitempty"`
-}
-
-func newSshCommand() (*SshCommand, error) {
-	nodeIP := os.Getenv(nodeIPEnvVar)
-	if nodeIP == "" {
-		return nil, fmt.Errorf("%s environment variable not set", nodeIPEnvVar)
-	}
-	return &SshCommand{
-		nodeIP: nodeIP,
-	}, nil
+	ExecuteTime string `json:"Time,omitempty"`
+	User        string `json:"User,omitempty"`
+	ClientIp    string `json:"IP,omitempty"`
+	Port        string `json:"Port,omitempty"`
+	Pwd         string `json:"PWD,omitempty"`
+	Command     string `json:"Command,omitempty"`
+	ExitCode    string `json:"ExitCode,omitempty"`
 }
 
 func NewServer() *Server {
@@ -70,7 +64,9 @@ func NewServer() *Server {
 
 func (s *Server) StartServer(chanLength int) {
 	//全局channel 之后从这个channel里取出数据发送到controller
-	InitSshCommandCatcher(chanLength)
+	initSshCommandCatcher(chanLength)
+	//初始化sshCmd 对象池,对象复用使用
+	newSshCommandPool()
 
 	http.HandleFunc(s.router, s.handler)
 	err := http.ListenAndServe(":"+s.port, nil)
@@ -80,31 +76,53 @@ func (s *Server) StartServer(chanLength int) {
 	}
 }
 
-func InitSshCommandCatcher(chanLength int) {
+func initSshCommandCatcher(chanLength int) {
 	Catcher.CommandChan = make(chan *SshCommand, chanLength)
 }
 
-func serverHandler(w http.ResponseWriter, r *http.Request) {
-	sshCmd, err := newSshCommand()
-	if err != nil {
-		config.GlobalLogger.Panic(err.Error())
-		return
+func newSshCommandPool() {
+	pool = sync.Pool{New: func() interface{} {
+		return newSshCommand()
+	}}
+}
+func newSshCommand() *SshCommand {
+	nodeIP := os.Getenv(nodeIPEnvVar)
+	if nodeIP == "" {
+		nodeIP = "Unknown"
 	}
+	return &SshCommand{
+		nodeIP: nodeIP,
+	}
+}
+
+func serverHandler(w http.ResponseWriter, r *http.Request) {
+	sshCmd := pool.Get()
+	defer pool.Put(sshCmd)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		config.GlobalLogger.Error("", zap.Error(err))
 		return
 	}
 	defer r.Body.Close()
-	//反序列化逻辑没写
 	config.GlobalLogger.Debug("", zap.ByteString("body", body))
-	//将body转成json格式
 	//1.反序列化body到sshcmd,得到完整的nodeip 和 其他数据
+	err = json.Unmarshal(body, &sshCmd)
+	if err != nil {
+		config.GlobalLogger.Error("", zap.Error(err))
+		return
+	}
 	//2.发送到全局变量的channel中
+	switch sshCmd.(type) {
+	case *SshCommand:
+		Catcher.CommandChan <- sshCmd.(*SshCommand)
+		if Catcher.CommandChan == nil {
+			config.GlobalLogger.Error("CommandChan is nil, cannot send message")
+		}
+		config.GlobalLogger.Debug("messages send success", zap.Any("", sshCmd.(*SshCommand)))
+		return
+	default:
+		config.GlobalLogger.Error("", zap.Error(fmt.Errorf("type not support")))
+		return
+	}
 
-}
-
-// 将收到的cmd转换成json之后才能反序列化
-func stringToJson(string) (string error) {
-	return nil
 }

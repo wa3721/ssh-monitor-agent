@@ -45,7 +45,7 @@ func checkDirectory() {
 		}
 		return
 	}
-	config.GlobalLogger.Info("✅ target directory '%s' is exist。\n", zap.String("", targetDir))
+	config.GlobalLogger.Info("✅ target directory  is exist。\n", zap.String("", targetDir))
 }
 
 // checkScript 检查项目内（如当前目录）是否存在指定的脚本文件
