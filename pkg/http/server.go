@@ -48,7 +48,6 @@ type SshCommand struct {
 }
 
 func NewServer() *Server {
-
 	return &Server{
 		server: &http.Server{
 			ReadHeaderTimeout: 10 * time.Second,

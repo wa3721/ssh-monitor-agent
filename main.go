@@ -19,10 +19,12 @@ func main() {
 	var logOutput string
 	var prod bool
 	var catcherLength int
+	var controllerAddr string
 	flag.StringVar(&loglevel, "loglevel", "debug", "Set log level , Optional: debug, info, warn, error, default: info")
 	flag.StringVar(&logOutput, "logoutput", "stdout", "Set log output path ,Optional: console, file, double, default: console")
 	flag.BoolVar(&prod, "prod", false, "Set deployment mode or prod mode Optional: false, true default: false")
 	flag.IntVar(&catcherLength, "catcherlength", 1000, "Set ssh command provider channel length, default: 1000")
+	flag.StringVar(&controllerAddr, "controlleraddr", "ssh-controller-svc", "set controller address, default: ssh-controller-svc")
 	flag.Parse()
 	err := config.InitLogger(loglevel, logOutput, prod)
 	if err != nil {
@@ -30,8 +32,7 @@ func main() {
 	}
 	scriptinit.NewChecklist().RunAll()
 	scriptinit.Exec()
-
-	go httpserver.NewServer().StartServer(catcherLength)
-	consumer.Consume()
+	go consumer.Consume(controllerAddr)
+	httpserver.NewServer().StartServer(catcherLength)
 
 }
