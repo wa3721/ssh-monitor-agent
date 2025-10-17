@@ -21,7 +21,7 @@ RUN for i in $(seq 1 10); do \
 # 复制源代码并构建
 COPY . .
 RUN go build -ldflags="-s -w" -o bin/agent . \
-    && chmod +x bin/lanaya
+    && chmod +x bin/agent
 
 FROM alpine:3.19
 WORKDIR /app
