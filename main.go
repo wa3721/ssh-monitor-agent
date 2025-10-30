@@ -1,10 +1,10 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"sshmonitor/config"
 	httpserver "sshmonitor/pkg/http"
-
 	scriptinit "sshmonitor/pkg/script-init"
 )
 
@@ -18,10 +18,14 @@ func main() {
 	var logOutput string
 	var prod bool
 	var catcherLength int
-	flag.StringVar(&loglevel, "loglevel", "info", "Set log level , Optional: debug, info, warn, error, default: info")
+	var controllerAddr string
+	var consumerNum int
+	flag.StringVar(&loglevel, "loglevel", "debug", "Set log level , Optional: debug, info, warn, error, default: info")
 	flag.StringVar(&logOutput, "logoutput", "stdout", "Set log output path ,Optional: console, file, double, default: console")
 	flag.BoolVar(&prod, "prod", false, "Set deployment mode or prod mode Optional: false, true default: false")
 	flag.IntVar(&catcherLength, "catcherlength", 1000, "Set ssh command provider channel length, default: 1000")
+	flag.StringVar(&controllerAddr, "controlleraddr", "127.0.0.1:8081", "Set controller address to link kubernetes , default: 0.0.0.0")
+	flag.IntVar(&consumerNum, "consumernum", 3, "Set consumer number , default: 3")
 	flag.Parse()
 
 	err := config.InitLogger(loglevel, logOutput, prod)
@@ -30,5 +34,10 @@ func main() {
 	}
 	scriptinit.NewChecklist().RunAll()
 	scriptinit.Exec()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for i := 0; i < consumerNum; i++ {
+		go httpserver.NewConsumer().Consume(ctx, controllerAddr)
+	}
 	httpserver.NewServer().StartServer(catcherLength)
 }

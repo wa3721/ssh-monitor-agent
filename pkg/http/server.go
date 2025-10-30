@@ -1,9 +1,9 @@
 package httpserver
 
 import (
-	"fmt"
 	"go.uber.org/zap"
 	"io"
+	"k8s.io/apimachinery/pkg/util/json"
 	"os"
 	"time"
 
@@ -40,13 +40,13 @@ type SshCommand struct {
 	Port        string `json:"port,omitempty"`
 	Pwd         string `json:"pwd,omitempty"`
 	Command     string `json:"command,omitempty"`
-	ExitCode    int32  `json:"exit_code,omitempty"`
+	ExitCode    string `json:"exit_code,omitempty"`
 }
 
 func newSshCommand() (*SshCommand, error) {
 	nodeIP := os.Getenv(nodeIPEnvVar)
 	if nodeIP == "" {
-		return nil, fmt.Errorf("%s environment variable not set", nodeIPEnvVar)
+		nodeIP = "Unknown"
 	}
 	return &SshCommand{
 		nodeIP: nodeIP,
@@ -100,11 +100,18 @@ func serverHandler(w http.ResponseWriter, r *http.Request) {
 	config.GlobalLogger.Debug("", zap.ByteString("body", body))
 	//将body转成json格式
 	//1.反序列化body到sshcmd,得到完整的nodeip 和 其他数据
+	err = json.Unmarshal(body, sshCmd)
+	if err != nil {
+		config.GlobalLogger.Error("", zap.Error(err))
+		return
+	}
+
 	//2.发送到全局变量的channel中
-
-}
-
-// 将收到的cmd转换成json之后才能反序列化
-func stringToJson(string) (string error) {
-	return nil
+	select {
+	case Catcher.CommandChan <- sshCmd:
+		config.GlobalLogger.Debug("send to channel successful.", zap.ByteString("body", body))
+	default:
+		config.GlobalLogger.Warn("wait to send to channel..", zap.ByteString("body", body))
+		time.Sleep(500 * time.Millisecond)
+	}
 }

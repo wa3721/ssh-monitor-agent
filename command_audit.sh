@@ -30,8 +30,24 @@ log_command() {
         client_port="-"
     fi
 
-   log_entry="| Time: $timestamp | User: $(whoami) | IP: $client_ip | Port: $client_port | PWD: $PWD | Command: $last_command | ExitCode: $exit_code |"
-
+  # log_entry="| Time: $timestamp | User: $(whoami) | IP: $client_ip | Port: $client_port | PWD: $PWD | Command: $last_command | ExitCode: $exit_code |"
+    log_entry=$(jq -n \
+        --arg time "$timestamp" \
+        --arg user "$(whoami)" \
+        --arg ip "$client_ip" \
+        --arg port "$client_port" \
+        --arg pwd "$PWD" \
+        --arg cmd "$last_command" \
+        --arg code "$exit_code" \
+        '{
+            time: $time,
+            user: $user,
+            ip: $ip,
+            port: $port,
+            pwd: $pwd,
+            command: $cmd,
+            exit_code: $code
+        }')
 #    echo "$log_entry" >> /var/log/ssh_command_audit.log
 
     # 2. 发送到远程位置（核心步骤）
