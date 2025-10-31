@@ -13,7 +13,7 @@ log_command() {
      local exit_code=$?
    { set +x; } 2>/dev/null
        local current_history_num
-       current_history_num=$(history 1|awk 'print $1')
+       current_history_num=$(history 1|awk '{print $1}')
        if [[ ! -f "$SESSION_MARKER_FILE" ]] || [[ "$current_history_num" == "$last_history_num" ]]; then
          if [[ ! -f "$SESSION_MARKER_FILE" ]]; then
            touch "$SESSION_MARKER_FILE"
