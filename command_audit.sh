@@ -12,11 +12,16 @@ SESSION_MARKER_FILE="/home/ssh_session_$$_${RANDOM}"
 log_command() {
      local exit_code=$?
    { set +x; } 2>/dev/null
-
-       if [[ ! -f "$SESSION_MARKER_FILE" ]]; then
+       local current_history_num
+       current_history_num=$(history 1|awk 'print $1')
+       if [[ ! -f "$SESSION_MARKER_FILE" ]] || [[ "$current_history_num" == "$last_history_num" ]]; then
+         if [[ ! -f "$SESSION_MARKER_FILE" ]]; then
            touch "$SESSION_MARKER_FILE"
+           fi
+           last_history_num="$current_history_num"
            return 0
        fi
+       last_history_num="$current_history_num"
     local last_command
     last_command=$(history 1 | { read -r num  cmd; echo "$cmd"; })
     local timestamp
