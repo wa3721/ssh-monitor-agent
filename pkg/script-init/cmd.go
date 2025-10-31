@@ -1,6 +1,8 @@
 package scriptinit
 
 import (
+	"strings"
+
 	"go.uber.org/zap"
 
 	"sshmonitor/config"
@@ -18,12 +20,14 @@ type Checklist struct {
 	checkDirectory         checkfunc
 	checkScript            checkfunc
 	checkScriptInDirectory checkfunc
+	replacePodIP           checkfunc
 }
 
 const (
 	targetDir  = "/etc/profile.d"   // 目标目录
 	scriptName = "command_audit.sh" // 脚本文件名
 	projectDir = "./"               // 项目目录，假设脚本在当前目录下
+	pod_ip     = "POD_IP"
 )
 
 func NewChecklist() *Checklist {
@@ -31,6 +35,7 @@ func NewChecklist() *Checklist {
 		checkDirectory:         checkDirectory,
 		checkScript:            checkScript,
 		checkScriptInDirectory: checkScriptInDirectory,
+		replacePodIP:           replacePodIP,
 	}
 }
 
@@ -78,12 +83,31 @@ func checkScriptInDirectory() {
 	config.GlobalLogger.Info("⏩ The target directory already contains the script; deployment skipped.\n", zap.String("", targetScriptPath))
 }
 
+// replacePodIP 检查容器中是否存在pod_ip变量，并替换到原始脚本中
+func replacePodIP() {
+	podIP := os.Getenv(pod_ip)
+	if podIP == "" {
+		config.GlobalLogger.Fatal("❌ pod_ip env not set in container.\n")
+	}
+	scriptPath := projectDir + scriptName
+	file, err := os.ReadFile(scriptPath)
+	if err != nil {
+		config.GlobalLogger.Fatal("read file error: \n", zap.String("", scriptPath), zap.Error(err))
+	}
+	newfFile := strings.Replace(string(file), "POD_IP_WAIT_REPLACE", podIP, -1)
+	err = os.WriteFile(scriptPath, []byte(newfFile), 0644)
+	if err != nil {
+		config.GlobalLogger.Fatal("write file error: \n", zap.String("", scriptPath), zap.Error(err))
+	}
+}
+
 // RunAll 方法按顺序执行所有检查
 func (cl *Checklist) RunAll() {
 	config.GlobalLogger.Info("Begin performing pre-deployment checks...")
 	cl.checkDirectory()
 	cl.checkScript()
 	cl.checkScriptInDirectory()
+	cl.replacePodIP()
 	config.GlobalLogger.Info("All inspections have been completed.")
 }
 
