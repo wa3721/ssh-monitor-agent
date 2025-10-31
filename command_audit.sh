@@ -52,7 +52,7 @@ log_command() {
 
     # 2. 发送到远程位置（核心步骤）
     # 示例：使用 curl 发送到 HTTP API
-    if curl --max-time 5 -X POST -H "Content-Type: text/plain" -d "$log_entry" http://127.0.0.1:8080/command_log
+    if curl --max-time 5 -X POST -H "Content-Type: text/plain" -d "$log_entry" http://$POD_IP:8080/command_log
     then :
     else
        echo "[$timestamp] Failed to send log to remote server." >> "$AUDIT_LOG"
