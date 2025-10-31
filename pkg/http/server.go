@@ -1,11 +1,12 @@
 package httpserver
 
 import (
-	"go.uber.org/zap"
 	"io"
-	"k8s.io/apimachinery/pkg/util/json"
 	"os"
 	"time"
+
+	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/util/json"
 
 	"net/http"
 	"sshmonitor/config"
@@ -33,7 +34,7 @@ type SshCommandCatcher struct {
 }
 
 type SshCommand struct {
-	nodeIP      string //nodeIp 应该一开始就初始化 取自downwardApi 环境变量
+	NodeIP      string `json:"node,omitempty"` //nodeIp 应该一开始就初始化 取自downwardApi 环境变量
 	ExecuteTime string `json:"time,omitempty"`
 	User        string `json:"user,omitempty"`
 	ClientIp    string `json:"ip,omitempty"`
@@ -49,7 +50,7 @@ func newSshCommand() (*SshCommand, error) {
 		nodeIP = "Unknown"
 	}
 	return &SshCommand{
-		nodeIP: nodeIP,
+		NodeIP: nodeIP,
 	}, nil
 }
 
