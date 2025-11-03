@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ssh-monitor-agent
+  namespace: wangao-dev
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      ssh-monitor.io/name: ssh-agent
+      service.monitor.io/name: daemonset-agent
+  template:
+    metadata:
+      labels:
+        ssh-monitor.io/name: ssh-agent
+        service.monitor.io/name: daemonset-agent
+    spec:
+      affinity: { }
+      containers:
+        - args:
+            - --loglevel=debug
+            - --controlleraddr=controller:8081
+          command:
+            - ./agent
+          env:
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+          image: agent:v1.3.6
+          imagePullPolicy: IfNotPresent
+          name: agent
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256M
+            requests:
+              cpu: 100m
+              memory: 200M
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /etc/profile.d
+              name: script
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: { }
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - hostPath:
+            path: /etc/profile.d
+            type: ""
+          name: script
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
